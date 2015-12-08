@@ -6,4 +6,5 @@
     <string name="open_setting">open settings</string>
     <string name="last_time_used">Last Used  :</string>
     <string name="permission_required">Please provide permission to monitor app usage</string>
+    <string name="invalid_version">The app currently does not support pre-Lollipop devices.</string>
 </resources>
