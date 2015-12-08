@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">AppUsageMonitor</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="open_setting">open settings</string>
+    <string name="last_time_used">Last Used</string>
+    <string name="permission_required">Please provide permission to monitor app usage</string>
+</resources>
