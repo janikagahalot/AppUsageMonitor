@@ -1,5 +1,8 @@
 package com.appusagemonitor;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,9 +21,17 @@ import java.util.List;
  */
 public class AppUsageMonitorListAdapter extends RecyclerView.Adapter<AppUsageMonitorListAdapter.ViewHolder> {
 
-private static final String TAG = "AppUsageMonitorListAdapter";
-private List<AppUsageDetails> mCustomUsageStatsList = new ArrayList<>();
-private DateFormat mDateFormat = new SimpleDateFormat();
+    private static final String TAG = "AppUsageMonitorListAdapter";
+    private List<AppUsageDetails> mCustomUsageStatsList = new ArrayList<>();
+    private DateFormat mDateFormat = new SimpleDateFormat();
+    private Context mContext;
+
+
+
+    public AppUsageMonitorListAdapter(Context context) {
+        this.mContext = context;
+
+    }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
 
@@ -49,6 +60,7 @@ private DateFormat mDateFormat = new SimpleDateFormat();
 
 }
 
+
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
         View v = LayoutInflater.from(viewGroup.getContext())
@@ -58,11 +70,18 @@ private DateFormat mDateFormat = new SimpleDateFormat();
     @Override
     public void onBindViewHolder(AppUsageMonitorListAdapter.ViewHolder viewHolder, int position) {
 
-        viewHolder.getPackageName().setText(
-                mCustomUsageStatsList.get(position).usageStats.getPackageName());
-        long lastTimeUsed = mCustomUsageStatsList.get(position).usageStats.getLastTimeUsed();
-        viewHolder.getLastTimeUsed().setText(mDateFormat.format(new Date(lastTimeUsed)));
-        viewHolder.getAppIcon().setImageDrawable(mCustomUsageStatsList.get(position).appIcon);
+        String packageName = mCustomUsageStatsList.get(position).getUsageStats().getPackageName();
+        PackageManager packageManager = mContext.getPackageManager();
+        try {
+            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
+            String name = packageManager.getApplicationLabel(applicationInfo).toString();
+            viewHolder.getPackageName().setText(name);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        long lastTimeUsed = mCustomUsageStatsList.get(position).getUsageStats().getLastTimeUsed();
+        viewHolder.getLastTimeUsed().setText("  " + mDateFormat.format(new Date(lastTimeUsed)));
+        viewHolder.getAppIcon().setImageDrawable(mCustomUsageStatsList.get(position).getAppIcon());
 
     }
 

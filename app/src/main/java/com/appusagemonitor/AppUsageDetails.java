@@ -9,6 +9,22 @@ import android.graphics.drawable.Drawable;
 public class AppUsageDetails {
 
     private static final String TAG = "AppUsageDetails";
-    public UsageStats usageStats;
-    public Drawable appIcon;
+    private UsageStats usageStats;
+    private Drawable appIcon;
+
+    public UsageStats getUsageStats() {
+        return usageStats;
+    }
+
+    public void setUsageStats(UsageStats usageStats) {
+        this.usageStats = usageStats;
+    }
+
+    public Drawable getAppIcon() {
+        return appIcon;
+    }
+
+    public void setAppIcon(Drawable appIcon) {
+        this.appIcon = appIcon;
+    }
 }

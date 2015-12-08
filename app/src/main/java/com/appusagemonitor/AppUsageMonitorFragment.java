@@ -5,6 +5,7 @@ import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -39,6 +40,7 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
     RecyclerView mRecyclerView;
     RecyclerView.LayoutManager mLayoutManager;
     Button mOpenUsageSettingButton;
+    boolean mActivityResult = false;
 
     public static AppUsageMonitorFragment newInstance() {
 
@@ -56,13 +58,12 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_app_usage_monitor, container, false);
-
     }
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mAppusageListAdapter = new AppUsageMonitorListAdapter();
+        mAppusageListAdapter = new AppUsageMonitorListAdapter(getActivity());
         mRecyclerView = (RecyclerView) view.findViewById(R.id.recyclerview);
         mLayoutManager = mRecyclerView.getLayoutManager();
         mRecyclerView.scrollToPosition(0);
@@ -70,8 +71,27 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
         mOpenUsageSettingButton = (Button)view.findViewById(R.id.button_open_usage_setting);
         List<UsageStats> usageStatsList =
                 getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
-        //Collections.sort(usageStatsList,this);
+        if(usageStatsList == null) return;
         updateAppsList(usageStatsList);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if(mActivityResult) {
+            List<UsageStats> usageStatsList =
+                    getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
+            if(usageStatsList == null) {
+                Toast.makeText(getActivity(),
+                        getString(R.string.permission_required),
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            mActivityResult = false;
+            mOpenUsageSettingButton.setVisibility(View.GONE);
+            updateAppsList(usageStatsList);
+        }
+
     }
 
     public List<UsageStats> getUsageStatistics(int intervalType) {
@@ -80,6 +100,15 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
         List<UsageStats> queryUsageStats = mUsageStatsManager
                 .queryUsageStats(intervalType, cal.getTimeInMillis(),
                         System.currentTimeMillis());
+
+        if (queryUsageStats.size() == 0) {
+            Toast.makeText(getActivity(),
+                    getString(R.string.permission_required),
+                    Toast.LENGTH_LONG).show();
+            mOpenUsageSettingButton.setVisibility(View.VISIBLE);
+            mOpenUsageSettingButton.setOnClickListener(this);
+            return null;
+        }
         HashMap<String, Long> map = new HashMap<>();
         for (int i = 0; i < queryUsageStats.size(); i++) {
             String packageName = queryUsageStats.get(i).getPackageName();
@@ -102,14 +131,6 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
             Log.d("tag", entry.getKey() + "->" + entry.getValue());
             updatedList.add(getUsageStatObj(entry.getKey(), queryUsageStats));
         }
-
-        if (queryUsageStats.size() == 0) {
-            Toast.makeText(getActivity(),
-                    getString(R.string.permission_required),
-                    Toast.LENGTH_LONG).show();
-            mOpenUsageSettingButton.setVisibility(View.VISIBLE);
-            mOpenUsageSettingButton.setOnClickListener(this);
-        }
         return updatedList;
     }
 
@@ -127,14 +148,14 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
         List<AppUsageDetails> customUsageStatsList = new ArrayList<>();
         for (int i = 0; i < usageStatsList.size(); i++) {
             AppUsageDetails customUsageStats = new AppUsageDetails();
-            customUsageStats.usageStats = usageStatsList.get(i);
+            customUsageStats.setUsageStats(usageStatsList.get(i));
             try {
                 Drawable appIcon = getActivity().getPackageManager()
-                        .getApplicationIcon(customUsageStats.usageStats.getPackageName());
-                customUsageStats.appIcon = appIcon;
+                        .getApplicationIcon(customUsageStats.getUsageStats().getPackageName());
+                customUsageStats.setAppIcon(appIcon);
             } catch (PackageManager.NameNotFoundException e) {
                 Log.w(TAG, String.format("App Icon is not found for %s",
-                        customUsageStats.usageStats.getPackageName()));
+                        customUsageStats.getUsageStats().getPackageName()));
             }
             customUsageStatsList.add(customUsageStats);
         }
@@ -145,6 +166,7 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
 
     @Override
     public void onClick(View v) {
+        mActivityResult = true;
         startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
 
     }
