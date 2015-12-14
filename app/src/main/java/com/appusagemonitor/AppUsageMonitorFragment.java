@@ -69,8 +69,9 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
         mRecyclerView.scrollToPosition(0);
         mRecyclerView.setAdapter(mAppusageListAdapter);
         mOpenUsageSettingButton = (Button)view.findViewById(R.id.button_open_usage_setting);
-        List<UsageStats> usageStatsList =
-                getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
+        // List<UsageStats> usageStatsList =
+        //        getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
+        List<AppUsageDetails> usageStatsList = getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
         if(usageStatsList == null) return;
         updateAppsList(usageStatsList);
     }
@@ -79,8 +80,10 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
     public void onResume() {
         super.onResume();
         if(mActivityResult) {
-            List<UsageStats> usageStatsList =
-                    getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
+            // List<UsageStats> usageStatsList =
+            //        getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
+            List<AppUsageDetails> usageStatsList = getUsageStatistics(UsageStatsManager.INTERVAL_DAILY);
+
             if(usageStatsList == null) {
                 Toast.makeText(getActivity(),
                         getString(R.string.permission_required),
@@ -94,7 +97,8 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
 
     }
 
-    public List<UsageStats> getUsageStatistics(int intervalType) {
+
+    public List<AppUsageDetails> getUsageStatistics(int intervalType) {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.YEAR, -1);
         List<UsageStats> queryUsageStats = mUsageStatsManager
@@ -121,18 +125,62 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
                 map.put(packageName, time);
             }
         }
+        HashMap<String, LaunchAndTime> appMap = new HashMap<>();
+        for(int i = 0; i < queryUsageStats.size(); i++){
+            String packageName = queryUsageStats.get(i).getPackageName();
+            Long time = queryUsageStats.get(i).getTotalTimeInForeground();
+            LaunchAndTime object =new LaunchAndTime();
+            int launchCount1 =1;
+            object.setTotalForegound(time);
+            object.setCount(launchCount1);
+            Log.d("outside ifff", time+ " ");
+            if (appMap.containsKey(packageName)) {
+                Long prevTime; //= map.get(packageName);
+                LaunchAndTime preTime = appMap.get(packageName);
+                Log.d("time per launch", preTime.getCount() + "   " + preTime.getTotalForegound());
+                prevTime = preTime.getTotalForegound();
+                int launchCount = preTime.getCount();
+                prevTime += time;
+                launchCount++;
+                object.setTotalForegound(prevTime);
+                object.setCount(launchCount);
+                appMap.put(packageName, object);
+            } else {
+                appMap.put(packageName, object);
+            }
+        }
         ValueComparator bvc = new ValueComparator(map);
         TreeMap treeMap  = new TreeMap<>(bvc);
         treeMap.putAll(map);
-        List<UsageStats> updatedList = new ArrayList<>();
+
+        TimeComparator tvc = new TimeComparator(appMap);
+        TreeMap treeMap1 = new TreeMap<>(tvc);
+        treeMap1.putAll(appMap);
+        /*List<UsageStats> updatedList = new ArrayList<>();
         Iterator it = treeMap.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String , Long> entry = (Map.Entry)it.next();
             Log.d("tag", entry.getKey() + "->" + entry.getValue());
             updatedList.add(getUsageStatObj(entry.getKey(), queryUsageStats));
+        }*/
+        List<AppUsageDetails> customUsageStatsList = new ArrayList<>();
+        List<UsageStats> updatedList = new ArrayList<>();
+        Iterator it = treeMap1.entrySet().iterator();
+        while (it.hasNext()){
+            Map.Entry<String, LaunchAndTime> entry = (Map.Entry)it.next();
+            updatedList.add(getUsageStatObj(entry.getKey(), queryUsageStats));
+            AppUsageDetails obj = new AppUsageDetails();
+            obj.setForegroundTime(entry.getValue().getTotalForegound());
+            obj.setLaunchCount(entry.getValue().getCount());
+            Log.d("taglalalalalalalalala", entry.getKey() + "->" + entry.getValue().getTotalForegound() + "    " + entry.getValue().getCount());
+            obj.setUsageStats(getUsageStatObj(entry.getKey(), queryUsageStats));
+            Log.d("thisisisisisisi" , obj.getLaunchCount()+" ");
+            customUsageStatsList.add(obj);
         }
-        return updatedList;
+
+        return customUsageStatsList;
     }
+
 
     private UsageStats getUsageStatObj(String key, List<UsageStats> usageStatses) {
         for (int i = 0; i < usageStatses.size(); i++) {
@@ -144,15 +192,18 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
         return null;
     }
 
-    void updateAppsList(List<UsageStats> usageStatsList) {
+    void updateAppsList(List<AppUsageDetails> usageStatsList) {
         List<AppUsageDetails> customUsageStatsList = new ArrayList<>();
         for (int i = 0; i < usageStatsList.size(); i++) {
             AppUsageDetails customUsageStats = new AppUsageDetails();
-            customUsageStats.setUsageStats(usageStatsList.get(i));
+            customUsageStats.setUsageStats(usageStatsList.get(i).getUsageStats());
+
             try {
                 Drawable appIcon = getActivity().getPackageManager()
                         .getApplicationIcon(customUsageStats.getUsageStats().getPackageName());
                 customUsageStats.setAppIcon(appIcon);
+                customUsageStats.setForegroundTime(usageStatsList.get(i).getForegroundTime());
+                customUsageStats.setLaunchCount(usageStatsList.get(i).getLaunchCount());
             } catch (PackageManager.NameNotFoundException e) {
                 Log.w(TAG, String.format("App Icon is not found for %s",
                         customUsageStats.getUsageStats().getPackageName()));
@@ -191,6 +242,47 @@ public class AppUsageMonitorFragment extends Fragment implements View.OnClickLis
             } else {
                 return 1;
             } // returning 0 would merge keys
+        }
+
+    }
+    private class TimeComparator implements Comparator {
+        HashMap<String, LaunchAndTime> base;
+
+        public TimeComparator(HashMap<String, LaunchAndTime> base) {
+            this.base = base;
+        }
+
+        // Note: this comparator imposes orderings that are inconsistent with
+        // equals.
+        public int compare(Object a, Object b) {
+            if (base.get(a).getTotalForegound() >= base.get(b).getTotalForegound()) {
+                return -1;
+            } else {
+                return 1;
+            } // returning 0 would merge keys
+        }
+
+    }
+
+    public class LaunchAndTime {
+
+        private long totalForegound;
+        private int count;
+
+        public long getTotalForegound() {
+            return totalForegound;
+        }
+
+        public void setTotalForegound(long totalForegound) {
+            this.totalForegound = totalForegound;
+        }
+
+        public int getCount() {
+            return count;
+        }
+
+        public void setCount(int count) {
+            this.count = count;
         }
 
     }
